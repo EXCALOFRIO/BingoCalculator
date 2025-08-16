@@ -90,23 +90,25 @@ const App: React.FC = () => {
   
   // State for the theory calculator
   const [totalCardsStr, setTotalCardsStr] = useState<string>('100');
-  const [totalCards, setTotalCards] = useState<number | null>(null);
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-  const [error, setError] = useState<string>('');
   const [isCalculated, setIsCalculated] = useState<boolean>(false);
+  
+  // State for live game setup
+  const [gameTotalCards, setGameTotalCards] = useState<number | null>(null);
+  const [startGamePromptVisible, setStartGamePromptVisible] = useState(false);
+  const [gameTotalCardsInput, setGameTotalCardsInput] = useState('100');
+  const [setupError, setSetupError] = useState<string>('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleCalculate = () => {
     const cards = parseInt(totalCardsStr, 10);
     if (isNaN(cards) || cards <= 0) {
-      setError('Por favor, introduce un número válido de cartones.');
-      setTotalCards(null);
+      setSetupError('Por favor, introduce un número válido de cartones.');
       setChartData([]);
       setIsCalculated(false);
     } else {
-      setError('');
-      setTotalCards(cards);
+      setSetupError('');
       const data = generateChartData();
       
       const adjustedData = data.map(d => {
@@ -181,16 +183,39 @@ const App: React.FC = () => {
     }
   };
 
-  const onStartGame = () => {
+  const handleConfirmStartGame = () => {
+    const cards = parseInt(gameTotalCardsInput, 10);
+    if (isNaN(cards) || cards <= userCards.length) {
+      setSetupError(`Introduce un número total de cartones válido (debe ser mayor que tus ${userCards.length} cartones).`);
+      return;
+    }
+
     if (userCards.length > 0) {
+      setSetupError('');
+      setGameTotalCards(cards);
       setView('GAME');
     }
   };
   
   const onNewGame = () => {
     setUserCards([]);
+    setGameTotalCards(null);
+    setStartGamePromptVisible(false);
     setView('SETUP');
   };
+  
+  const PresetButton: React.FC<{ value: string }> = ({ value }) => (
+    <button
+      onClick={() => setGameTotalCardsInput(value)}
+      className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
+        gameTotalCardsInput === value
+          ? 'bg-brand-blue text-white'
+          : 'bg-gray-600 hover:bg-gray-500 text-gray-200'
+      }`}
+    >
+      {value}
+    </button>
+  );
 
   return (
     <div className="min-h-screen bg-gray-900 text-white font-sans flex flex-col items-center p-4 sm:p-6 md:p-8">
@@ -209,29 +234,32 @@ const App: React.FC = () => {
             <section id="calculator" className="bg-gray-800/50 p-6 rounded-2xl border border-gray-700 shadow-2xl">
               <h2 className="text-2xl font-bold mb-4 text-center text-brand-accent">Calculadora Teórica</h2>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-4">
-                <input
-                  type="number"
-                  value={totalCardsStr}
-                  onChange={(e) => setTotalCardsStr(e.target.value)}
-                  placeholder="Ej: 100"
-                  className="bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-2 w-full sm:w-auto text-center focus:ring-2 focus:ring-brand-blue focus:outline-none"
-                  aria-label="Número total de cartones vendidos"
-                />
+                 <div>
+                    <label htmlFor="total-cards-input" className="block text-sm font-medium text-gray-400 text-center sm:text-left mb-2">Nº de Cartones para Simulación</label>
+                    <input
+                      id="total-cards-input"
+                      type="number"
+                      value={totalCardsStr}
+                      onChange={(e) => setTotalCardsStr(e.target.value)}
+                      placeholder="Ej: 100"
+                      className="bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-2 w-full sm:w-auto text-center focus:ring-2 focus:ring-brand-blue focus:outline-none"
+                      aria-label="Número total de cartones para la simulación"
+                    />
+                </div>
                 <button
                   onClick={handleCalculate}
-                  className="bg-brand-blue hover:bg-brand-dark text-white font-bold py-2 px-6 rounded-lg shadow-md transition-transform transform hover:scale-105 w-full sm:w-auto"
+                  className="bg-brand-blue hover:bg-brand-dark text-white font-bold py-2 px-6 rounded-lg shadow-md transition-transform transform hover:scale-105 w-full sm:w-auto self-end"
                 >
-                  Calcular Probabilidad
+                  Calcular Gráfica
                 </button>
               </div>
-              {error && <p className="text-red-400 text-center mt-2">{error}</p>}
               
               <div className="mt-6 h-80 w-full bg-gray-900/50 p-4 rounded-xl border border-gray-700">
                 {isCalculated ? (
                     <ProbabilityChart data={chartData} />
                 ) : (
                     <div className="flex items-center justify-center h-full text-gray-500">
-                        <p>Introduce el número de cartones y pulsa "Calcular" para ver la gráfica.</p>
+                        <p>Introduce el número de cartones y pulsa "Calcular Gráfica" para ver la probabilidad teórica.</p>
                     </div>
                 )}
               </div>
@@ -256,8 +284,8 @@ const App: React.FC = () => {
                 </div>
                 
                 {userCards.length > 0 && (
-                    <>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div className="flex flex-col items-center">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 w-full">
                             {userCards.map((card, index) => (
                                 <div key={index} className="relative">
                                     <BingoCard cardData={card} drawnNumbers={new Set()} />
@@ -269,20 +297,43 @@ const App: React.FC = () => {
                                 </div>
                             ))}
                         </div>
-                        <div className="text-center">
-                            <button
-                                onClick={onStartGame}
+                        
+                        {!startGamePromptVisible ? (
+                             <button
+                                onClick={() => setStartGamePromptVisible(true)}
                                 className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg shadow-md transition-transform transform hover:scale-105 text-lg"
                             >
                                 ¡Empezar a Jugar con {userCards.length} Cartón(es)!
                             </button>
-                        </div>
-                    </>
+                        ) : (
+                            <div className="bg-gray-700/50 p-4 rounded-lg mt-4 border border-gray-600 w-full max-w-md text-center">
+                                <h3 className="text-lg font-bold mb-3">¿Cuántos cartones hay en juego en total?</h3>
+                                <div className="flex justify-center items-center gap-2 mb-4">
+                                    <PresetButton value="100" />
+                                    <PresetButton value="250" />
+                                    <PresetButton value="500" />
+                                </div>
+                                <div className="flex flex-col sm:flex-row justify-center items-center gap-2">
+                                    <input 
+                                        type="number"
+                                        value={gameTotalCardsInput}
+                                        onChange={(e) => setGameTotalCardsInput(e.target.value)}
+                                        placeholder="Nº Total"
+                                        className="bg-gray-800 text-white border border-gray-600 rounded-lg px-4 py-2 w-full sm:w-32 text-center focus:ring-2 focus:ring-brand-blue focus:outline-none"
+                                        aria-label="Número total de cartones en juego"
+                                    />
+                                    <button onClick={handleConfirmStartGame} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg w-full sm:w-auto">Confirmar</button>
+                                    <button onClick={() => setStartGamePromptVisible(false)} className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg w-full sm:w-auto">Cancelar</button>
+                                </div>
+                                {setupError && <p className="text-red-400 text-center mt-3">{setupError}</p>}
+                            </div>
+                        )}
+                    </div>
                 )}
             </section>
           </div>
         ) : (
-          <GameScreen userCards={userCards} onNewGame={onNewGame} />
+           gameTotalCards !== null && <GameScreen userCards={userCards} onNewGame={onNewGame} totalCardsInPlay={gameTotalCards} />
         )}
       </main>
     </div>
