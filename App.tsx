@@ -1,11 +1,8 @@
-
 import React, { useState, useCallback, useRef } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
 
-import { ProbabilityChart } from './components/ProbabilityChart';
 import { GameScreen } from './components/GameScreen';
-import { generateChartData } from './services/bingoCalculator';
-import type { ChartDataPoint, BingoCardData } from './types';
+import type { BingoCardData } from './types';
 import { BingoCard } from './components/BingoCard';
 
 // Initialize AI client once to prevent re-creation on re-renders
@@ -88,11 +85,6 @@ const App: React.FC = () => {
   const [isLoadingOcr, setIsLoadingOcr] = useState(false);
   const [ocrError, setOcrError] = useState<string | null>(null);
   
-  // State for the theory calculator
-  const [totalCardsStr, setTotalCardsStr] = useState<string>('100');
-  const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
-  const [isCalculated, setIsCalculated] = useState<boolean>(false);
-  
   // State for live game setup
   const [gameTotalCards, setGameTotalCards] = useState<number | null>(null);
   const [startGamePromptVisible, setStartGamePromptVisible] = useState(false);
@@ -100,34 +92,6 @@ const App: React.FC = () => {
   const [setupError, setSetupError] = useState<string>('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleCalculate = () => {
-    const cards = parseInt(totalCardsStr, 10);
-    if (isNaN(cards) || cards <= 0) {
-      setSetupError('Por favor, introduce un número válido de cartones.');
-      setChartData([]);
-      setIsCalculated(false);
-    } else {
-      setSetupError('');
-      const data = generateChartData();
-      
-      const adjustedData = data.map(d => {
-        const probLineaOneCard = d.Linea;
-        const probBingoOneCard = d.Bingo;
-        const probNoLineaOneCard = 1 - probLineaOneCard;
-        const probNoBingoOneCard = 1 - probBingoOneCard;
-        const probNoLineaAllCards = Math.pow(probNoLineaOneCard, cards);
-        const probNoBingoAllCards = Math.pow(probNoBingoOneCard, cards);
-        return {
-          ...d,
-          Linea: 1 - probNoLineaAllCards,
-          Bingo: 1 - probNoBingoAllCards,
-        };
-      });
-      setChartData(adjustedData);
-      setIsCalculated(true);
-    }
-  };
 
   const runOcr = useCallback(async (file: File) => {
     setIsLoadingOcr(true);
@@ -225,46 +189,12 @@ const App: React.FC = () => {
               Calculadora de Probabilidad de Bingo
             </h1>
             <p className="text-lg text-gray-400">
-              Analiza tus probabilidades teóricas o juega una partida en directo.
+              Juega una partida de bingo y calcula tus probabilidades en tiempo real.
             </p>
         </header>
 
         {view === 'SETUP' ? (
           <div className="flex flex-col gap-8">
-            <section id="calculator" className="bg-gray-800/50 p-6 rounded-2xl border border-gray-700 shadow-2xl">
-              <h2 className="text-2xl font-bold mb-4 text-center text-brand-accent">Calculadora Teórica</h2>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-4">
-                 <div>
-                    <label htmlFor="total-cards-input" className="block text-sm font-medium text-gray-400 text-center sm:text-left mb-2">Nº de Cartones para Simulación</label>
-                    <input
-                      id="total-cards-input"
-                      type="number"
-                      value={totalCardsStr}
-                      onChange={(e) => setTotalCardsStr(e.target.value)}
-                      placeholder="Ej: 100"
-                      className="bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-2 w-full sm:w-auto text-center focus:ring-2 focus:ring-brand-blue focus:outline-none"
-                      aria-label="Número total de cartones para la simulación"
-                    />
-                </div>
-                <button
-                  onClick={handleCalculate}
-                  className="bg-brand-blue hover:bg-brand-dark text-white font-bold py-2 px-6 rounded-lg shadow-md transition-transform transform hover:scale-105 w-full sm:w-auto self-end"
-                >
-                  Calcular Gráfica
-                </button>
-              </div>
-              
-              <div className="mt-6 h-80 w-full bg-gray-900/50 p-4 rounded-xl border border-gray-700">
-                {isCalculated ? (
-                    <ProbabilityChart data={chartData} />
-                ) : (
-                    <div className="flex items-center justify-center h-full text-gray-500">
-                        <p>Introduce el número de cartones y pulsa "Calcular Gráfica" para ver la probabilidad teórica.</p>
-                    </div>
-                )}
-              </div>
-            </section>
-
             <section id="live-game" className="bg-gray-800/50 p-6 rounded-2xl border border-gray-700 shadow-2xl">
                 <h2 className="text-2xl font-bold mb-4 text-center text-brand-accent">Jugar Partida en Directo</h2>
                 <div className="text-center mb-6">
