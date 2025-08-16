@@ -1,0 +1,7 @@
+{
+  "name": "Copy of Copy of Calculadora de Probabilidad de Bingo",
+  "description": "Una aplicación web dinámica para calcular y visualizar la probabilidad de ganar en el bingo (línea y bingo completo) a medida que se extraen los números, basado en el número total de cartones vendidos.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
